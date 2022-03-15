@@ -1,0 +1,16 @@
+[edgecache]
+cachedir = "/var/tmp/edgecache"
+cachesize = "256m"
+cores = 1
+connections = 1024
+host = "{{ansible_hostname}}"
+{% if tls %}
+tls = true
+tlskey = "/etc/pki/tls/keys/{{ tlskey | basename }}"
+tlscert = "/etc/pki/tls/certs/{{ tlscert | basename }}"
+secureport = 443
+{% else %}
+tls = false
+insecureport = 80
+{% endif %}
+tenant = "{{ tenant }}"

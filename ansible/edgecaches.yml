@@ -1,0 +1,137 @@
+---
+- name: EdgeCache Playbook
+  hosts: localhost
+  connection: local	
+  become: true
+  vars:
+    docker_compose_version: v2.2.3
+    edgecache_version: v0.3.6
+    tls: true
+    tlscert: /home/rhendrix/tls/rob_fullchain.pem
+    tlskey: /home/rhendrix/tls/rob_priv-key.pem
+    tenant: 5a276233-2e13-4ee4-bab0-794782252cc2
+
+  tasks:
+
+    - name: Install utils
+      apt:
+        update_cache: yes
+        name:
+          - ca-certificates
+          - curl
+          - gnupg
+          - lsb-release
+        state: present
+
+    - name: Add docker GPG apt Key
+      apt_key: 
+        url: https://download.docker.com/linux/debian/gpg
+        state: present
+
+    - name: Add docker repository
+      apt_repository:
+        repo: deb https://download.docker.com/linux/debian bullseye stable
+        state: present
+
+    - name: Clean old Docker
+      apt:
+        name:
+          - docker
+          - docker-client
+          - docker-client-latest
+          - docker-common
+          - docker-latest
+          - docker-latest-logrotate
+          - docker-logrotate
+          - docker-engine
+        state: absent
+
+    - name: Install Docker
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        state: present
+    
+    - name: Enable service docker
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Create docker plugin dir
+      file:
+        path: /usr/local/lib/docker/cli-plugins
+        state: directory
+        mode: '0755'
+
+    - name: Install docker-compose
+      remote_user: kadmin
+      get_url: 
+        url : https://github.com/docker/compose/releases/download/{{ docker_compose_version }}/docker-compose-linux-x86_64
+        dest: /usr/local/lib/docker/cli-plugins/docker-compose
+        mode: 'u+x,g+x'
+
+    - name: Create EdgeCache Cache directory
+      file:
+        path: /var/tmp/edgecache
+        state: directory
+        mode: '0755'
+
+    - name: Create cert directory
+      file:
+        path: /etc/pki/tls/certs
+        state: directory
+        mode: '0755'
+
+    - name: Create cert key directory
+      file:
+        path: /etc/pki/tls/keys
+        state: directory
+        mode: '0755'
+
+    - name: Install TLS Cert
+      copy:
+         src: "{{ tlscert }}"
+         dest: "/etc/pki/tls/certs/{{ tlscert | basename }}"
+         seuser: root
+         group: root
+         mode: 0755
+      when: tls == true and tlscert is defined
+
+    - name: Install TLS Key
+      copy:
+         src: "{{ tlskey }}"
+         dest: "/etc/pki/tls/keys/{{ tlskey | basename }}"
+         seuser: root
+         group: root
+         mode: 0755
+      when: tls == true and tlskey is defined
+
+    - name: Create EdgeCache config directory
+      file:
+        path: /etc/edgecache
+        state: directory
+        mode: '0755'
+
+    - name: Template a file to /etc/edgecache/conf.toml
+      template:
+        src: ./templates/config.toml.j2
+        dest: /etc/edgecache/conf.toml
+        mode: '0644'
+
+    - name: Download Edgecache
+      get_url: 
+       url: https://cdn.kollective.app/edge/releases/{{ edgecache_version }}/edgecache_{{ edgecache_version }}-1_amd64.deb
+       dest: "/home/rhendrix/edgecache_{{ edgecache_version }}-1_amd64.deb"
+
+    - name: Install edgecache
+      apt: deb="/home/rhendrix/edgecache_{{ edgecache_version }}-1_amd64.deb"
+
+
+    - name: Make sure the EdgeCache service unit is running
+      systemd:
+        state: started
+        enabled: yes
+        name: kollective-edgecache
