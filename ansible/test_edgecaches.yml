@@ -84,13 +84,13 @@
       file:
         path: /etc/pki/tls/certs
         state: directory
-        mode: '0755'
+        mode: '0644'
 
     - name: Create cert key directory
       file:
         path: /etc/pki/tls/keys
         state: directory
-        mode: '0755'
+        mode: '0644'
 
     - name: Install TLS Cert
       copy:
@@ -98,7 +98,7 @@
          dest: "/etc/pki/tls/certs/{{ tlscert | basename }}"
          seuser: root
          group: root
-         mode: 0755
+         mode: 0644
       when: tls == true and tlscert is defined
 
     - name: Install TLS Key
@@ -107,7 +107,7 @@
          dest: "/etc/pki/tls/keys/{{ tlskey | basename }}"
          seuser: root
          group: root
-         mode: 0755
+         mode: 0644
       when: tls == true and tlskey is defined
 
     - name: Create EdgeCache config directory
@@ -120,7 +120,7 @@
       template:
         src: ./templates/config.toml.j2
         dest: /etc/edgecache/conf.toml
-        mode: '0644'
+        mode: '0755'
 
     - name: Download Edgecache
       get_url: 
